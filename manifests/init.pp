@@ -1,3 +1,5 @@
+# Time synchronization
+
 class ntp {
     package { 'ntp' :
         ensure  => installed,
