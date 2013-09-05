@@ -1,22 +1,27 @@
 # Time synchronization
 
 class ntp {
-    $rootgrp = $::operatingsystem ? {
-        'AIX'   => 'system',
-        default => 'root',
-    }
-    
-    $ntpfile = $::operatingsystem ? {
-        'AIX'   => 'aix-ntp.conf',
-        default => 'lnx-ntp.conf',
-    }
 
-    $ntpservice = $::osfamily ? {
-        'Debian' => 'ntp',
-        'AIX' => 'xntpd',
-        default  => 'ntpd',
+    case $::osfamily {
+        'AIX': {
+            $rootgrp='system'
+            $ntpfile='aix-ntp.conf'
+            $ntpservice='xntpd'
+            $ntppkg='bos.net.tcp.client'
+        }
+        'Debian': {
+            $rootgrp='root'
+            $ntpfile='lnx-ntp.conf'
+            $ntpservice='ntp'
+            $ntppkg='ntp'
+        }
+        default : {
+            $rootgrp='root'
+            $ntpfile='lnx-ntp.conf'
+            $ntpservice='ntpd'
+            $ntppkg='ntp'
+        }
     }
-
 
     file { 'ntp.conf' :
         ensure  => 'file',
@@ -25,30 +30,18 @@ class ntp {
         owner   => 'root',
         group   => $rootgrp,
         mode    => '0640',
-        #require => Package[ 'ntp' ],
+        require => Package[ $ntppkg ],
+    }
+    
+    package { $ntppkg :
+        ensure  => installed,
     }
 
-    if $::osfamily == 'RedHat' {
-        package { 'ntp' :
-            ensure  => installed,
-        }
+    service { $ntpservice :
+         ensure  => running,
+         require => [ Package[ $ntppkg ], File[ 'ntp.conf' ], ],
+         enable  => true,
+         subscribe => File[ 'ntp.conf' ],
+    } 
 
-        service { $ntpservice :
-            ensure  => running,
-            require => [ Package[ 'ntp' ], File[ 'ntp.conf' ], ],
-            enable  => true,
-            subscribe => File[ 'ntp.conf' ],
-        }
-    }elsif $::osfamily == 'AIX' {
-        package { 'bos.net.tcp.client' :
-            ensure  => installed,
-        }
-
-       service { $ntpservice :
-            ensure  => running,
-            require => [ Package[ 'bos.net.tcp.client' ], File[ 'ntp.conf' ], ],
-            enable  => true,
-            subscribe => File[ 'ntp.conf' ],
-        } 
-    }
 }
